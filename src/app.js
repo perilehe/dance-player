@@ -12,13 +12,22 @@ export class App {
     this.engine = new AudioEngine();
     this.bpmDetector = new BpmDetector();
     this.playlistManager = new PlaylistManager();
-    this.beatOverlay = null; // 延迟初始化，需要 AudioContext
+    this.beatOverlay = null;
 
     this.allTracks = [];
     this.filteredTracks = [];
     this.currentFilter = '';
     this.currentSearch = '';
     this.selectedTrackId = null;
+
+    // 播放模式: 'list' | 'single' | 'shuffle'
+    this.repeatMode = storage.getPreferences().repeatMode || 'list';
+    // 用于 shuffle 的打乱索引
+    this._shuffleOrder = [];
+    this._shufflePos = -1;
+    // 在曲库播放时的列表引用
+    this._libraryPlayList = null;
+    this._libraryPlayIdx = -1;
 
     this._initUI();
     this._initEvents();
@@ -28,7 +37,6 @@ export class App {
   }
 
   _initUI() {
-    // 缓存 DOM 元素
     this.$ = {
       trackTitle: document.getElementById('track-title'),
       trackCategory: document.getElementById('track-category'),
@@ -43,10 +51,11 @@ export class App {
       btnPlay: document.getElementById('btn-play'),
       btnPrev: document.getElementById('btn-prev'),
       btnNext: document.getElementById('btn-next'),
+      btnRepeat: document.getElementById('btn-repeat'),
+      btnShuffle: document.getElementById('btn-shuffle'),
+      repeatLabel: document.getElementById('repeat-label'),
       btnDetectBpm: document.getElementById('btn-detect-bpm'),
       toggleMetronome: document.getElementById('toggle-metronome'),
-      toggleVoice: document.getElementById('toggle-voice'),
-      voiceVol: document.getElementById('voice-vol'),
       timeSignature: document.getElementById('time-signature'),
       categoryFilter: document.getElementById('category-filter'),
       searchInput: document.getElementById('search-input'),
@@ -55,9 +64,11 @@ export class App {
       playlistTracks: document.getElementById('playlist-tracks'),
       btnNewPlaylist: document.getElementById('btn-new-playlist'),
       btnDeletePlaylist: document.getElementById('btn-delete-playlist'),
-      btnAddToPlaylist: document.getElementById('btn-add-to-playlist'),
       btnExportPlaylist: document.getElementById('btn-export-playlist'),
       btnImportPlaylist: document.getElementById('btn-import-playlist'),
+      addCategoryFilter: document.getElementById('add-category-filter'),
+      addSearchInput: document.getElementById('add-search-input'),
+      addTrackList: document.getElementById('add-track-list'),
       loadingIndicator: document.getElementById('loading-indicator'),
     };
   }
@@ -108,6 +119,11 @@ export class App {
       });
     });
 
+    // 循环/随机模式
+    $.btnRepeat.addEventListener('click', () => this._cycleRepeatMode());
+    $.btnShuffle.addEventListener('click', () => this._toggleShuffle());
+    this._updateModeButtons();
+
     // BPM 检测
     $.btnDetectBpm.addEventListener('click', () => this._detectBpm());
     $.bpmInput.addEventListener('change', () => {
@@ -119,14 +135,12 @@ export class App {
 
     // 节拍器
     $.toggleMetronome.addEventListener('change', () => this._updateBeatOverlay());
-    $.toggleVoice.addEventListener('change', () => this._updateBeatOverlay());
-    $.voiceVol.addEventListener('input', () => this._updateBeatOverlay());
     $.timeSignature.addEventListener('change', () => {
       if (this.beatOverlay) this.beatOverlay.updateParams({ section: parseInt($.timeSignature.value) });
       storage.setPreferences({ timeSignature: $.timeSignature.value });
     });
 
-    // 搜索 & 筛选
+    // 曲库搜索 & 筛选
     $.categoryFilter.addEventListener('change', () => {
       this.currentFilter = $.categoryFilter.value;
       this._renderTrackList();
@@ -143,9 +157,12 @@ export class App {
       this.playlistManager.select($.playlistSelect.value);
       this._renderPlaylist();
     });
-    $.btnAddToPlaylist.addEventListener('click', () => this._addToPlaylist());
     $.btnExportPlaylist.addEventListener('click', () => this._exportPlaylist());
     $.btnImportPlaylist.addEventListener('click', () => this._importPlaylist());
+
+    // 播放列表 - 添加曲目区域的筛选
+    $.addCategoryFilter.addEventListener('change', () => this._renderAddTrackList());
+    $.addSearchInput.addEventListener('input', () => this._renderAddTrackList());
 
     // Tabs
     document.querySelectorAll('.tab').forEach(tab => {
@@ -154,14 +171,18 @@ export class App {
 
     // 音频引擎事件
     engine.onTimeUpdate(() => this._updateProgress());
-    engine.onEnded(() => this._playNext());
+    engine.onEnded(() => this._onTrackEnded());
     engine.onLoaded(() => this._updateDuration());
     engine.onError(() => {
       $.trackTitle.textContent = '❌ 播放失败';
     });
 
     // 播放列表变化
-    this.playlistManager.onChange(() => this._refreshPlaylistSelect());
+    this.playlistManager.onChange(() => {
+      this._refreshPlaylistSelect();
+      this._renderPlaylist();
+      this._renderAddTrackList();
+    });
 
     // 键盘快捷键
     document.addEventListener('keydown', (e) => {
@@ -181,12 +202,9 @@ export class App {
     this.$.speedLabel.textContent = (prefs.speed / 100).toFixed(2) + 'x';
     this._updateSpeedPresets(prefs.speed);
     this.$.toggleMetronome.checked = prefs.metronomeOn;
-    this.$.toggleVoice.checked = prefs.voiceOn;
-    this.$.voiceVol.value = prefs.voiceVol;
     this.$.timeSignature.value = prefs.timeSignature;
   }
 
-  // 更新速度预设按钮高亮
   _updateSpeedPresets(currentVal) {
     document.querySelectorAll('.preset-btn').forEach(btn => {
       const val = parseInt(btn.dataset.speed);
@@ -194,17 +212,90 @@ export class App {
     });
   }
 
+  // === 循环/随机模式 ===
+
+  _cycleRepeatMode() {
+    // list -> single -> list
+    this.repeatMode = this.repeatMode === 'list' ? 'single' : 'list';
+    storage.setPreferences({ repeatMode: this.repeatMode });
+    this._updateModeButtons();
+  }
+
+  _toggleShuffle() {
+    if (this.repeatMode === 'shuffle') {
+      this.repeatMode = 'list';
+    } else {
+      this.repeatMode = 'shuffle';
+      this._buildShuffleOrder();
+    }
+    storage.setPreferences({ repeatMode: this.repeatMode });
+    this._updateModeButtons();
+  }
+
+  _updateModeButtons() {
+    this.$.btnRepeat.classList.toggle('active', this.repeatMode === 'single');
+    this.$.btnShuffle.classList.toggle('active', this.repeatMode === 'shuffle');
+
+    const labels = { list: '列表循环', single: '单曲循环', shuffle: '随机播放' };
+    this.$.repeatLabel.textContent = labels[this.repeatMode] || '列表循环';
+  }
+
+  _buildShuffleOrder() {
+    const list = this._getActiveTrackList();
+    this._shuffleOrder = list.map((_, i) => i);
+    // Fisher-Yates shuffle
+    for (let i = this._shuffleOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this._shuffleOrder[i], this._shuffleOrder[j]] = [this._shuffleOrder[j], this._shuffleOrder[i]];
+    }
+    // 当前位置放到开头
+    const currentIdx = this._getCurrentIndexInList();
+    if (currentIdx >= 0) {
+      const posInShuffle = this._shuffleOrder.indexOf(currentIdx);
+      if (posInShuffle > 0) {
+        this._shuffleOrder.splice(posInShuffle, 1);
+        this._shuffleOrder.unshift(currentIdx);
+      }
+      this._shufflePos = 0;
+    } else {
+      this._shufflePos = -1;
+    }
+  }
+
+  _getActiveTrackList() {
+    if (this.playlistManager.currentPlaylist) {
+      const pl = this.playlistManager.getCurrent();
+      if (pl && pl.tracks.length > 0) return pl.tracks;
+    }
+    return this.filteredTracks;
+  }
+
+  _getCurrentIndexInList() {
+    const list = this._getActiveTrackList();
+    return list.findIndex(t => t.id === this.engine.currentTrack?.id);
+  }
+
+  _onTrackEnded() {
+    if (this.repeatMode === 'single') {
+      // 单曲循环：重新播放
+      const track = this.engine.currentTrack;
+      this.engine.seekPercent(0);
+      this.engine.play(track).then(() => {
+        if (this.beatOverlay && this.$.toggleMetronome.checked) {
+          this.beatOverlay.stop();
+          this.beatOverlay.start(this._getBeatParams(track));
+        }
+      });
+      return;
+    }
+    this._playNext();
+  }
+
   async _initBeatOverlay() {
-    // 需要等 AudioContext 就绪（用户第一次交互后）
     const initOnInteraction = async () => {
       if (this.beatOverlay) return;
       this.engine._ensureAudioContext();
       this.beatOverlay = new BeatOverlay(this.engine.audioContext, this.engine.audio);
-      try {
-        await this.beatOverlay.loadSounds();
-      } catch (e) {
-        console.warn('节拍音频加载失败:', e);
-      }
       document.removeEventListener('click', initOnInteraction);
     };
     document.addEventListener('click', initOnInteraction, { once: false });
@@ -213,22 +304,24 @@ export class App {
   async _loadMusic() {
     this.$.loadingIndicator.classList.remove('hidden');
     try {
-      const { tracks, categories, errors } = await this.loader.loadAll();
+      const { tracks, categories } = await this.loader.loadAll();
       this.allTracks = tracks;
 
-      // 填充分类筛选
+      // 填充分类筛选（曲库 + 播放列表添加区域）
       categories.forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat;
-        opt.textContent = cat;
-        this.$.categoryFilter.appendChild(opt);
+        const opt1 = document.createElement('option');
+        opt1.value = cat;
+        opt1.textContent = cat;
+        this.$.categoryFilter.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = cat;
+        opt2.textContent = cat;
+        this.$.addCategoryFilter.appendChild(opt2);
       });
 
       this._renderTrackList();
-
-      if (errors.length > 0) {
-        console.warn('部分音乐仓库加载失败:', errors);
-      }
+      this._renderAddTrackList();
     } catch (e) {
       console.error('音乐加载失败:', e);
       this.$.trackList.innerHTML = '<div class="error">音乐库加载失败，请检查网络</div>';
@@ -249,7 +342,8 @@ export class App {
         <div class="track-sub">
           <span class="tag">${this._escHtml(t._category)}</span>
           ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : ''}
-          <a class="btn-download" href="${t.url}" download="${this._escHtml(t.filename || t.title + '.mp3')}" title="下载" onclick="event.stopPropagation()">⬇</a>
+          <button class="btn-action btn-add-pl" data-id="${t.id}" title="添加到播放列表" onclick="event.stopPropagation()">➕</button>
+          <a class="btn-action" href="${t.url}" download="${this._escHtml(t.filename || t.title + '.mp3')}" title="下载" onclick="event.stopPropagation()">⬇</a>
         </div>
       </div>
     `).join('');
@@ -260,14 +354,83 @@ export class App {
         const idx = parseInt(el.dataset.index);
         this.selectedTrackId = el.dataset.id;
         this._playFromLibrary(idx);
-        this._renderTrackList(); // 更新选中样式
+        this._renderTrackList();
       });
     });
+
+    // 添加到播放列表按钮
+    container.querySelectorAll('.btn-add-pl').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const track = this.allTracks.find(t => t.id === id);
+        if (track) this._quickAddToPlaylist(track, btn);
+      });
+    });
+  }
+
+  // 播放列表标签页 - 添加曲目列表
+  _renderAddTrackList() {
+    const cat = this.$.addCategoryFilter.value;
+    const search = (this.$.addSearchInput.value || '').toLowerCase();
+    let tracks = this.allTracks;
+    if (cat) tracks = tracks.filter(t => t._category === cat);
+    if (search) tracks = tracks.filter(t => (t.title || '').toLowerCase().includes(search));
+
+    const container = this.$.addTrackList;
+    if (!container) return;
+
+    if (tracks.length === 0) {
+      container.innerHTML = '<div class="empty">无匹配曲目</div>';
+      return;
+    }
+
+    container.innerHTML = tracks.map(t => `
+      <div class="track-item" data-id="${t.id}">
+        <div class="track-title">${this._escHtml(t.title)}</div>
+        <div class="track-sub">
+          <span class="tag">${this._escHtml(t._category)}</span>
+          ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : ''}
+          <button class="btn-action btn-quick-add" data-id="${t.id}" title="添加到当前播放列表" onclick="event.stopPropagation()">➕</button>
+        </div>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.btn-quick-add').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const track = this.allTracks.find(t => t.id === id);
+        if (track) this._quickAddToPlaylist(track, btn);
+      });
+    });
+  }
+
+  _quickAddToPlaylist(track, triggerBtn) {
+    const name = this.playlistManager.currentPlaylist;
+    if (!name) {
+      const newName = prompt('输入播放列表名称（或留空取消）:');
+      if (!newName) return;
+      this.playlistManager.create(newName);
+      this.playlistManager.select(newName);
+      this._refreshPlaylistSelect();
+    }
+    const plName = this.playlistManager.currentPlaylist;
+    const added = this.playlistManager.addTrack(plName, track);
+    if (added && triggerBtn) {
+      const orig = triggerBtn.textContent;
+      triggerBtn.textContent = '✓';
+      setTimeout(() => { triggerBtn.textContent = orig; }, 800);
+    }
+    this._renderPlaylist();
   }
 
   _playFromLibrary(index) {
     const track = this.filteredTracks[index];
     if (!track) return;
+    // 记录曲库播放位置
+    this._libraryPlayList = this.filteredTracks;
+    this._libraryPlayIdx = index;
     this._playTrack(track);
   }
 
@@ -277,14 +440,12 @@ export class App {
       this.$.trackTitle.textContent = track.title;
       this.$.trackCategory.textContent = track._category || track.category || '-';
 
-      // 设置 BPM 和节拍信息
       const bpm = track.bpm || storage.getBpm(track.id);
       this.$.trackBpm.textContent = bpm || '?';
       this.$.bpmInput.value = bpm || '';
       this.$.bpmInput.placeholder = bpm || '自动';
 
-      // 启动节拍叠加（传入完整节拍参数）
-      if (this.beatOverlay && (this.$.toggleMetronome.checked || this.$.toggleVoice.checked)) {
+      if (this.beatOverlay && this.$.toggleMetronome.checked) {
         this.beatOverlay.stop();
         this.beatOverlay.start(this._getBeatParams(track));
       }
@@ -299,7 +460,6 @@ export class App {
 
   _togglePlay() {
     if (!this.engine.currentTrack) {
-      // 没有曲目，播放第一首
       if (this.filteredTracks.length > 0) {
         this._playFromLibrary(0);
       }
@@ -308,9 +468,8 @@ export class App {
     this.engine.togglePlay();
     this.$.btnPlay.textContent = this.engine.isPlaying ? '⏸' : '▶';
 
-    // 同步节拍叠加
     if (this.beatOverlay) {
-      if (this.engine.isPlaying) {
+      if (this.engine.isPlaying && this.$.toggleMetronome.checked) {
         this.beatOverlay.start(this._getBeatParams(this.engine.currentTrack));
       } else {
         this.beatOverlay.stop();
@@ -319,28 +478,84 @@ export class App {
   }
 
   _playNext() {
-    // 优先从播放列表取下一首
-    let next = this.playlistManager.next();
+    let next = null;
+
+    if (this.playlistManager.currentPlaylist) {
+      const pl = this.playlistManager.getCurrent();
+      if (pl && pl.tracks.length > 0) {
+        if (this.repeatMode === 'shuffle') {
+          if (this._shuffleOrder.length === 0) this._buildShuffleOrder();
+          this._shufflePos = (this._shufflePos + 1) % this._shuffleOrder.length;
+          next = pl.tracks[this._shuffleOrder[this._shufflePos]];
+        } else {
+          next = this.playlistManager.next();
+        }
+      }
+    }
+
+    if (!next && this._libraryPlayList && this._libraryPlayList.length > 0) {
+      if (this.repeatMode === 'shuffle') {
+        if (this._shuffleOrder.length === 0 || this._shuffleOrder[0] !== this._libraryPlayList.length) {
+          this._shuffleOrder = this._libraryPlayList.map((_, i) => i);
+          for (let i = this._shuffleOrder.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this._shuffleOrder[i], this._shuffleOrder[j]] = [this._shuffleOrder[j], this._shuffleOrder[i]];
+          }
+          const curIdx = this._libraryPlayList.findIndex(t => t.id === this.engine.currentTrack?.id);
+          if (curIdx >= 0) {
+            const p = this._shuffleOrder.indexOf(curIdx);
+            if (p > 0) { this._shuffleOrder.splice(p, 1); this._shuffleOrder.unshift(curIdx); }
+            this._shufflePos = 0;
+          }
+        }
+        this._shufflePos = (this._shufflePos + 1) % this._shuffleOrder.length;
+        next = this._libraryPlayList[this._shuffleOrder[this._shufflePos]];
+      } else {
+        const curIdx = this._libraryPlayList.findIndex(t => t.id === this.engine.currentTrack?.id);
+        const nextIdx = (curIdx + 1) % this._libraryPlayList.length;
+        next = this._libraryPlayList[nextIdx];
+        this._libraryPlayIdx = nextIdx;
+      }
+    }
+
     if (!next && this.filteredTracks.length > 0) {
-      // 从当前筛选列表取下一首
-      const currentIdx = this.filteredTracks.findIndex(
-        t => t.id === this.engine.currentTrack?.id
-      );
-      const nextIdx = (currentIdx + 1) % this.filteredTracks.length;
+      const curIdx = this.filteredTracks.findIndex(t => t.id === this.engine.currentTrack?.id);
+      const nextIdx = (curIdx + 1) % this.filteredTracks.length;
       next = this.filteredTracks[nextIdx];
     }
+
     if (next) this._playTrack(next);
   }
 
   _playPrev() {
-    let prev = this.playlistManager.prev();
+    let prev = null;
+
+    if (this.playlistManager.currentPlaylist) {
+      const pl = this.playlistManager.getCurrent();
+      if (pl && pl.tracks.length > 0) {
+        if (this.repeatMode === 'shuffle') {
+          if (this._shuffleOrder.length === 0) this._buildShuffleOrder();
+          this._shufflePos = (this._shufflePos - 1 + this._shuffleOrder.length) % this._shuffleOrder.length;
+          prev = pl.tracks[this._shuffleOrder[this._shufflePos]];
+        } else {
+          prev = this.playlistManager.prev();
+        }
+      }
+    }
+
+    if (!prev && this._libraryPlayList && this._libraryPlayList.length > 0) {
+      const curIdx = this._libraryPlayList.findIndex(t => t.id === this.engine.currentTrack?.id);
+      const prevIdx = (curIdx - 1 + this._libraryPlayList.length) % this._libraryPlayList.length;
+      prev = this._libraryPlayList[prevIdx];
+      this._libraryPlayIdx = prevIdx;
+    }
+
     if (!prev && this.filteredTracks.length > 0) {
-      const currentIdx = this.filteredTracks.findIndex(
-        t => t.id === this.engine.currentTrack?.id
-      );
-      const prevIdx = (currentIdx - 1 + this.filteredTracks.length) % this.filteredTracks.length;
+      const curIdx = this.filteredTracks.findIndex(t => t.id === this.engine.currentTrack?.id);
+      const prevIdx = (curIdx - 1 + this.filteredTracks.length) % this.filteredTracks.length;
       prev = this.filteredTracks[prevIdx];
     }
+
     if (prev) this._playTrack(prev);
   }
 
@@ -375,7 +590,6 @@ export class App {
         this.$.trackBpm.textContent = bpm;
         this.$.bpmInput.value = bpm;
         if (this.beatOverlay) this.beatOverlay.updateParams({ bpm });
-        // 更新 track 对象
         track.bpm = bpm;
       }
     } catch (e) {
@@ -395,43 +609,35 @@ export class App {
       const cached = storage.getBpm(track.id);
       if (cached) return cached;
     }
-    return 120; // 默认
+    return 120;
   }
 
-  // 获取完整节拍参数（传给 BeatOverlay）
   _getBeatParams(track) {
-    if (!track) return { bpm: 120, section: 4, introBeats: 0, categoryAbbr: '' };
+    if (!track) return { bpm: 120, section: 4, introBeats: 0 };
     const bpm = parseInt(this.$.bpmInput.value) || track.bpm || storage.getBpm(track.id) || 120;
     return {
       bpm,
       section: track.section || 4,
       introBeats: track.intro_beats || track.introBeats || 0,
-      categoryAbbr: track.category_abbr || track.categoryAbbr || '',
     };
   }
 
   _updateBeatOverlay() {
     const metronomeOn = this.$.toggleMetronome.checked;
-    const voiceOn = this.$.toggleVoice.checked;
-    const voiceVol = parseInt(this.$.voiceVol.value);
-
-    storage.setPreferences({ metronomeOn, voiceOn, voiceVol });
+    storage.setPreferences({ metronomeOn });
 
     if (!this.beatOverlay) return;
-
     this.beatOverlay.setMetronome(metronomeOn);
-    this.beatOverlay.setVoice(voiceOn, voiceVol);
 
-    // 如果正在播放且开启了节拍，重新启动
-    if (this.engine.isPlaying && (metronomeOn || voiceOn)) {
+    if (this.engine.isPlaying && metronomeOn) {
       this.beatOverlay.stop();
       this.beatOverlay.start(this._getBeatParams(this.engine.currentTrack));
-    } else if (!metronomeOn && !voiceOn) {
+    } else if (!metronomeOn) {
       this.beatOverlay.stop();
     }
   }
 
-  // --- 播放列表操作 ---
+  // --- 播放列表 ---
 
   _refreshPlaylistSelect() {
     const names = this.playlistManager.getNames();
@@ -466,28 +672,12 @@ export class App {
     }
   }
 
-  _addToPlaylist() {
-    const name = this.playlistManager.currentPlaylist;
-    if (!name) {
-      alert('请先选择或创建一个播放列表');
-      return;
-    }
-    const track = this.engine.currentTrack ||
-      this.filteredTracks.find(t => t.id === this.selectedTrackId);
-    if (track) {
-      const added = this.playlistManager.addTrack(name, track);
-      if (!added) alert('曲目已在列表中');
-      this._renderPlaylist();
-    }
-  }
-
   _renderPlaylist() {
     const list = this.playlistManager.getCurrent();
     const container = this.$.playlistTracks;
-    this.$.btnAddToPlaylist.disabled = !this.playlistManager.currentPlaylist;
 
     if (!list || list.tracks.length === 0) {
-      container.innerHTML = '<div class="empty">播放列表为空，从曲库中添加曲目</div>';
+      container.innerHTML = '<div class="empty">播放列表为空，从下方添加曲目</div>';
       return;
     }
 
@@ -508,8 +698,9 @@ export class App {
       el.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-remove')) return;
         const idx = parseInt(el.dataset.index);
-        this.playlistManager.setCurrentIndex(idx - 1); // -1 because next() will +1
-        const track = this.playlistManager.getCurrentTrack();
+        // 设置播放列表索引
+        this.playlistManager.setCurrentIndex(idx);
+        const track = list.tracks[idx];
         if (track) this._playTrack(track);
       });
     });
@@ -597,6 +788,7 @@ export class App {
     if (tabName === 'playlist') {
       this._refreshPlaylistSelect();
       this._renderPlaylist();
+      this._renderAddTrackList();
     }
   }
 
