@@ -1,0 +1,499 @@
+/* main.css - 深色主题，移动端优先 */
+
+:root {
+  --bg: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-card: #0f3460;
+  --text: #e8e8e8;
+  --text-muted: #8892a4;
+  --accent: #e94560;
+  --accent-hover: #ff6b81;
+  --border: #2a2a4a;
+  --success: #4ecca3;
+  --radius: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#app {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 12px 80px;
+}
+
+/* Header */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 8px;
+}
+
+#header h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.hidden { display: none !important; }
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-muted);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Now Playing */
+#now-playing {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.track-info {
+  margin-bottom: 10px;
+}
+
+.track-info .track-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.track-meta span {
+  margin-right: 10px;
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.progress-container input[type="range"] {
+  flex: 1;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.controls button {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+
+.controls button:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.controls button:active {
+  background: rgba(255,255,255,0.15);
+}
+
+#btn-play {
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+.volume-control input[type="range"] {
+  width: 60px;
+}
+
+/* Range inputs styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+/* Beat Controls */
+#beat-controls {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.control-row:last-child {
+  margin-bottom: 0;
+}
+
+.control-row label {
+  min-width: 36px;
+  color: var(--text-muted);
+}
+
+.control-row input[type="range"] {
+  flex: 1;
+  max-width: 120px;
+}
+
+.control-row input[type="number"] {
+  width: 60px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+}
+
+.control-row select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+.control-row button {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.control-row button:hover {
+  background: var(--accent);
+}
+
+.control-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.beat-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  margin-right: 2px;
+}
+
+.beat-row label {
+  display: flex;
+  align-items: center;
+  min-width: auto;
+  cursor: pointer;
+  color: var(--text);
+}
+
+/* Tabs */
+#tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 10px 0;
+  font-size: 1rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Tab Content */
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Filter Bar */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-bar select,
+.filter-bar input {
+  flex: 1;
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.filter-bar input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Track List */
+.track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.track-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.track-item:hover {
+  background: var(--bg-card);
+}
+
+.track-item.selected {
+  background: var(--bg-card);
+  border-left: 3px solid var(--accent);
+}
+
+.track-item.dragging {
+  opacity: 0.5;
+}
+
+.track-num {
+  min-width: 24px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.track-item .track-title {
+  flex: 1;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-sub {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tag {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.tag.bpm {
+  background: rgba(233, 69, 96, 0.2);
+  color: var(--accent);
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.btn-remove:hover {
+  color: var(--accent);
+  background: rgba(233, 69, 96, 0.1);
+}
+
+/* Playlist */
+.playlist-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.playlist-header select {
+  flex: 1;
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.playlist-header button {
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.playlist-header button:hover {
+  background: var(--bg-card);
+}
+
+.playlist-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.playlist-actions button {
+  flex: 1;
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.playlist-actions button:hover {
+  background: var(--bg-card);
+}
+
+.playlist-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty, .error {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 20px;
+  font-size: 0.9rem;
+}
+
+.error {
+  color: var(--accent);
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  #app {
+    max-width: 700px;
+    padding: 0 20px 80px;
+  }
+
+  #header h1 {
+    font-size: 1.4rem;
+  }
+
+  .controls button {
+    font-size: 1.8rem;
+    padding: 8px 16px;
+  }
+
+  #btn-play {
+    font-size: 2.2rem;
+  }
+
+  .volume-control input[type="range"] {
+    width: 100px;
+  }
+
+  .control-row input[type="range"] {
+    max-width: 200px;
+  }
+}

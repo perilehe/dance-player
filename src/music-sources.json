@@ -1,0 +1,39 @@
+{
+  "sources": [
+    {
+      "name": "恰恰",
+      "id": "chacha",
+      "manifestUrl": "https://perilehe.github.io/dance-music-chacha/music/manifest.json"
+    },
+    {
+      "name": "伦巴",
+      "id": "rumba",
+      "manifestUrl": "https://perilehe.github.io/dance-music-rumba/music/manifest.json"
+    },
+    {
+      "name": "桑巴",
+      "id": "samba",
+      "manifestUrl": "https://perilehe.github.io/dance-music-samba/music/manifest.json"
+    },
+    {
+      "name": "牛仔",
+      "id": "jive",
+      "manifestUrl": "https://perilehe.github.io/dance-music-jive/music/manifest.json"
+    },
+    {
+      "name": "斗牛",
+      "id": "paso",
+      "manifestUrl": "https://perilehe.github.io/dance-music-paso/music/manifest.json"
+    },
+    {
+      "name": "华尔兹",
+      "id": "waltz",
+      "manifestUrl": "https://perilehe.github.io/dance-music-waltz/music/manifest.json"
+    },
+    {
+      "name": "热身",
+      "id": "warmup",
+      "manifestUrl": "https://perilehe.github.io/dance-music-warmup/music/manifest.json"
+    }
+  ]
+}
