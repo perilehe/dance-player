@@ -87,10 +87,26 @@ export class App {
       const val = parseInt($.speed.value);
       engine.speed = val;
       $.speedLabel.textContent = (val / 100).toFixed(2) + 'x';
+      this._updateSpeedPresets(val);
       if (this.beatOverlay) {
         this.beatOverlay.updateParams({ bpm: this._getEffectiveBpm() });
       }
       storage.setPreferences({ speed: val });
+    });
+
+    // 速度预设按钮
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = parseInt(btn.dataset.speed);
+        $.speed.value = val;
+        engine.speed = val;
+        $.speedLabel.textContent = (val / 100).toFixed(2) + 'x';
+        this._updateSpeedPresets(val);
+        if (this.beatOverlay) {
+          this.beatOverlay.updateParams({ bpm: this._getEffectiveBpm() });
+        }
+        storage.setPreferences({ speed: val });
+      });
     });
 
     // BPM 检测
@@ -165,11 +181,20 @@ export class App {
     this.$.speed.value = prefs.speed;
     this.engine.speed = prefs.speed;
     this.$.speedLabel.textContent = (prefs.speed / 100).toFixed(2) + 'x';
+    this._updateSpeedPresets(prefs.speed);
     this.$.toggleMetronome.checked = prefs.metronomeOn;
     this.$.toggleVoice.checked = prefs.voiceOn;
     this.$.metronomeVol.value = prefs.metronomeVol;
     this.$.voiceVol.value = prefs.voiceVol;
     this.$.timeSignature.value = prefs.timeSignature;
+  }
+
+  // 更新速度预设按钮高亮
+  _updateSpeedPresets(currentVal) {
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      const val = parseInt(btn.dataset.speed);
+      btn.classList.toggle('active', val === currentVal);
+    });
   }
 
   async _initBeatOverlay() {
@@ -227,6 +252,7 @@ export class App {
         <div class="track-sub">
           <span class="tag">${this._escHtml(t._category)}</span>
           ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : ''}
+          <a class="btn-download" href="${t.url}" download="${this._escHtml(t.filename || t.title + '.mp3')}" title="下载" onclick="event.stopPropagation()">⬇</a>
         </div>
       </div>
     `).join('');

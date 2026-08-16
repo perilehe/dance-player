@@ -26,11 +26,6 @@
       "manifestUrl": "https://perilehe.github.io/dance-music-paso/manifest.json"
     },
     {
-      "name": "华尔兹",
-      "id": "waltz",
-      "manifestUrl": "https://perilehe.github.io/dance-music-waltz/manifest.json"
-    },
-    {
       "name": "热身",
       "id": "warmup",
       "manifestUrl": "https://perilehe.github.io/dance-music-warmup/manifest.json"
