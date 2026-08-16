@@ -11,19 +11,9 @@
       "manifestUrl": "https://perilehe.github.io/dance-music-rumba/manifest.json"
     },
     {
-      "name": "桑巴",
-      "id": "samba",
-      "manifestUrl": "https://perilehe.github.io/dance-music-samba/manifest.json"
-    },
-    {
-      "name": "牛仔",
-      "id": "jive",
-      "manifestUrl": "https://perilehe.github.io/dance-music-jive/manifest.json"
-    },
-    {
-      "name": "斗牛",
-      "id": "paso",
-      "manifestUrl": "https://perilehe.github.io/dance-music-paso/manifest.json"
+      "name": "拉丁组合",
+      "id": "latin",
+      "manifestUrl": "https://perilehe.github.io/dance-music-latin/manifest.json"
     },
     {
       "name": "热身",

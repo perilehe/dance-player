@@ -46,7 +46,6 @@ export class App {
       btnDetectBpm: document.getElementById('btn-detect-bpm'),
       toggleMetronome: document.getElementById('toggle-metronome'),
       toggleVoice: document.getElementById('toggle-voice'),
-      metronomeVol: document.getElementById('metronome-vol'),
       voiceVol: document.getElementById('voice-vol'),
       timeSignature: document.getElementById('time-signature'),
       categoryFilter: document.getElementById('category-filter'),
@@ -121,7 +120,6 @@ export class App {
     // 节拍器
     $.toggleMetronome.addEventListener('change', () => this._updateBeatOverlay());
     $.toggleVoice.addEventListener('change', () => this._updateBeatOverlay());
-    $.metronomeVol.addEventListener('input', () => this._updateBeatOverlay());
     $.voiceVol.addEventListener('input', () => this._updateBeatOverlay());
     $.timeSignature.addEventListener('change', () => {
       if (this.beatOverlay) this.beatOverlay.updateParams({ section: parseInt($.timeSignature.value) });
@@ -184,7 +182,6 @@ export class App {
     this._updateSpeedPresets(prefs.speed);
     this.$.toggleMetronome.checked = prefs.metronomeOn;
     this.$.toggleVoice.checked = prefs.voiceOn;
-    this.$.metronomeVol.value = prefs.metronomeVol;
     this.$.voiceVol.value = prefs.voiceVol;
     this.$.timeSignature.value = prefs.timeSignature;
   }
@@ -416,14 +413,13 @@ export class App {
   _updateBeatOverlay() {
     const metronomeOn = this.$.toggleMetronome.checked;
     const voiceOn = this.$.toggleVoice.checked;
-    const metronomeVol = parseInt(this.$.metronomeVol.value);
     const voiceVol = parseInt(this.$.voiceVol.value);
 
-    storage.setPreferences({ metronomeOn, voiceOn, metronomeVol, voiceVol });
+    storage.setPreferences({ metronomeOn, voiceOn, voiceVol });
 
-    if (!this.beatOverlay) return; // 未初始化
+    if (!this.beatOverlay) return;
 
-    this.beatOverlay.setMetronome(metronomeOn, metronomeVol);
+    this.beatOverlay.setMetronome(metronomeOn);
     this.beatOverlay.setVoice(voiceOn, voiceVol);
 
     // 如果正在播放且开启了节拍，重新启动

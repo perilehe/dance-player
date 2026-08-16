@@ -1,18 +1,17 @@
 // beat-overlay.js - 节拍器 + 数拍子叠加
-// 核心：以 audio 元素的 currentTime 为基准时钟，保证节拍与音乐精确同步
+// 以 audio 元素的 currentTime 为基准时钟
 
-// 各舞种对应的喊拍音频文件
 const VOICE_FILES = {
-  'C': 'beat_cha_cha.mp3',     // 恰恰
-  'R': 'beat_rumba.mp3',       // 伦巴
-  'S': 'beat_samba.mp3',       // 桑巴
-  'J': 'beat_jive.mp3',        // 牛仔
-  'P': 'beat_paso.mp3',        // 斗牛
-  'W': 'beat_waltz.mp3',       // 华尔兹
-  'V': 'beat_viennese.mp3',    // 维也纳华尔兹
-  'T': 'beat_tango.mp3',       // 探戈
-  'F': 'beat_foxtrot.mp3',     // 狐步
-  'Q': 'beat_quickstep.mp3',   // 快步
+  'C': 'beat_cha_cha.mp3',
+  'R': 'beat_rumba.mp3',
+  'S': 'beat_samba.mp3',
+  'J': 'beat_jive.mp3',
+  'P': 'beat_paso.mp3',
+  'W': 'beat_waltz.mp3',
+  'V': 'beat_viennese.mp3',
+  'T': 'beat_tango.mp3',
+  'F': 'beat_foxtrot.mp3',
+  'Q': 'beat_quickstep.mp3',
 };
 
 const NUMBER_FILES = {
@@ -25,25 +24,22 @@ const NUMBER_FILES = {
 export class BeatOverlay {
   constructor(audioContext, audioElement) {
     this.ctx = audioContext;
-    this.audio = audioElement;        // 引用 HTML5 Audio 元素（基准时钟）
+    this.audio = audioElement;
     this.voiceBuffers = {};
     this.numberBuffers = {};
     this._loaded = false;
 
-    // 参数
     this.metronomeOn = false;
     this.voiceOn = false;
-    this.metronomeVolume = 0.5;
-    this.voiceVolume = 0.5;
+    this.voiceVolume = 0.7;
     this.bpm = 120;
     this.section = 4;
     this.introBeats = 0;
     this.categoryAbbr = '';
 
-    // 调度状态
     this._running = false;
-    this._nextBeatTime = 0;   // 下一拍在"歌曲时间轴"上的位置（秒）
-    this._scheduledVoices = new Set(); // 已调度的小节索引（避免重复）
+    this._nextBeatTime = 0;
+    this._scheduledVoices = new Set();
     this._timerId = null;
   }
 
@@ -72,12 +68,12 @@ export class BeatOverlay {
 
     await Promise.all(promises);
     this._loaded = true;
-    console.log('节拍音频加载完成:', Object.keys(this.voiceBuffers).length, '个舞种');
+    console.log('Beat sounds loaded:', Object.keys(this.voiceBuffers).length, 'dance types');
   }
 
   start(params = {}) {
     if (!this._loaded) {
-      console.warn('节拍音频未加载完成');
+      console.warn('Beat sounds not loaded yet');
       return;
     }
 
@@ -93,8 +89,7 @@ export class BeatOverlay {
     this.introBeats = introBeats;
     this.categoryAbbr = categoryAbbr;
 
-    // 从 audio 的当前位置开始
-    this._nextBeatTime = this.audio.currentTime || 0;
+    this._nextBeatTime = 0;
     this._scheduledVoices = new Set();
     this._running = true;
 
@@ -109,9 +104,8 @@ export class BeatOverlay {
     }
   }
 
-  setMetronome(on, volume) {
+  setMetronome(on) {
     this.metronomeOn = on;
-    if (volume !== undefined) this.metronomeVolume = volume / 100;
   }
 
   setVoice(on, volume) {
@@ -126,56 +120,49 @@ export class BeatOverlay {
     if (params.categoryAbbr !== undefined) this.categoryAbbr = params.categoryAbbr;
   }
 
-  // 核心调度：以 audio.currentTime 为基准
+  // 核心调度
   _schedule() {
     if (!this._running) return;
 
     const beatInterval = 60.0 / this.bpm;
     const measureDuration = this.section * beatInterval;
     const introDuration = this.introBeats * beatInterval;
-    const SCHEDULE_AHEAD = 0.15; // 提前 150ms 调度
+    const SCHEDULE_AHEAD = 0.3;
 
-    // 基准：audio 元素的当前播放位置
     const audioNow = this.audio.currentTime;
-    // 计算 audio 时钟 → AudioContext 时钟的偏移量
-    const clockOffset = this.ctx.currentTime - audioNow;
+    const audioTarget = audioNow + SCHEDULE_AHEAD;
 
-    // 如果 audio 跳到了 _nextBeatTime 之前（seek），重置
+    // 如果 seek 到后面，重置调度状态
     if (audioNow > this._nextBeatTime + measureDuration) {
-      this._nextBeatTime = audioNow;
+      this._nextBeatTime = Math.floor(audioNow / beatInterval) * beatInterval;
       this._scheduledVoices = new Set();
     }
 
-    // 调度所有在 [audioNow, audioNow + SCHEDULE_AHEAD] 范围内的拍
-    const audioTarget = audioNow + SCHEDULE_AHEAD;
-
+    // 调度每一拍
     while (this._nextBeatTime <= audioTarget) {
-      const beatTime = this._nextBeatTime;  // 歌曲时间轴上的位置
-      const ctxTime = beatTime + clockOffset; // 对应的 AudioContext 时间
+      const beatTime = this._nextBeatTime;
+      const ctxTime = beatTime + this._getClockOffset();
 
       if (beatTime < introDuration) {
-        // === 前奏期间 ===
+        // 前奏：弱 click
         if (this.metronomeOn) {
-          // 前奏拍：弱 click
-          const beatIdx = Math.round(beatTime / beatInterval);
-          this._scheduleClick(ctxTime, false, this.metronomeVolume * 0.4);
+          this._scheduleClick(ctxTime, false, 0.3);
         }
       } else {
-        // === 正拍期间 ===
+        // 正拍期间
         const timeInVoice = beatTime - introDuration;
         const beatInMeasure = Math.round(timeInVoice / beatInterval) % this.section;
         const measureIndex = Math.floor(timeInVoice / measureDuration);
-        const measureStartInVoice = measureIndex * measureDuration;
-        const measureStartBeatTime = introDuration + measureStartInVoice;
+        const measureStart = introDuration + measureIndex * measureDuration;
 
         // 小节起点：调度喊拍
         if (this.voiceOn && !this._scheduledVoices.has(measureIndex)) {
           this._scheduledVoices.add(measureIndex);
-          const measureCtxTime = measureStartBeatTime + clockOffset;
-          this._scheduleVoice(measureCtxTime);
+          const voiceCtxTime = measureStart + this._getClockOffset();
+          this._scheduleVoice(voiceCtxTime);
         }
 
-        // 每拍：节拍器 click
+        // 每拍：节拍器
         if (this.metronomeOn) {
           const isStrong = (beatInMeasure === 0);
           this._scheduleClick(ctxTime, isStrong);
@@ -185,16 +172,19 @@ export class BeatOverlay {
       this._nextBeatTime += beatInterval;
     }
 
-    // 定期重新调度（50ms 间隔）
-    this._timerId = setTimeout(() => this._schedule(), 50);
+    this._timerId = setTimeout(() => this._schedule(), 30);
   }
 
-  // 调度喊拍语音（一小节）
+  // 获取 audio 时钟 → AudioContext 时钟的偏移量
+  _getClockOffset() {
+    return this.ctx.currentTime - this.audio.currentTime;
+  }
+
+  // 调度喊拍语音
   _scheduleVoice(ctxTime) {
     let buffer = this.voiceBuffers[this.categoryAbbr];
 
     if (!buffer) {
-      // Fallback: 用数字音频逐拍
       this._scheduleNumberVoice(ctxTime);
       return;
     }
@@ -202,7 +192,6 @@ export class BeatOverlay {
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
 
-    // 拉伸语音到一小节的时长
     const beatInterval = 60.0 / this.bpm;
     const measureDuration = this.section * beatInterval;
     source.playbackRate.value = buffer.duration / measureDuration;
@@ -215,7 +204,7 @@ export class BeatOverlay {
     source.start(ctxTime);
   }
 
-  // Fallback: 数字音频逐拍
+  // Fallback: 数字音频
   _scheduleNumberVoice(measureCtxTime) {
     const beatInterval = 60.0 / this.bpm;
     for (let b = 0; b < this.section; b++) {
@@ -236,7 +225,6 @@ export class BeatOverlay {
     }
   }
 
-  // 调度一个 click
   _scheduleClick(ctxTime, isAccent, forceVol = null) {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
@@ -246,8 +234,7 @@ export class BeatOverlay {
     osc.frequency.value = isAccent ? 1200 : 800;
     osc.type = 'sine';
 
-    const vol = forceVol !== null ? forceVol :
-      this.metronomeVolume * (isAccent ? 1.0 : 0.5);
+    const vol = forceVol !== null ? forceVol : (isAccent ? 0.8 : 0.4);
     gain.gain.setValueAtTime(vol, ctxTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctxTime + 0.05);
 
