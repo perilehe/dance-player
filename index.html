@@ -2,54 +2,110 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>舞蹈音乐播放器</title>
   <link rel="stylesheet" href="/src/styles/main.css">
 </head>
 <body>
   <div id="app">
-    <!-- Left Column: Player + Controls -->
-    <div class="left-col">
+    <!-- ====== Left Panel: Library + Playlist ====== -->
+    <section class="panel-left" id="panel-left">
       <header id="header">
-        <h1>🎵 舞蹈音乐播放器</h1>
+        <h1>🎵 舞蹈音乐</h1>
         <div id="loading-indicator" class="hidden">
-          <span class="spinner"></span> 加载中...
+          <span class="spinner"></span>
         </div>
       </header>
 
-      <!-- Now Playing -->
-      <section id="now-playing">
-        <div class="track-info">
-          <div class="track-title" id="track-title">未播放</div>
-          <div class="track-meta">
-            <span id="track-category" class="meta-tag">-</span>
-            <span class="meta-divider">·</span>
-            <span id="track-bpm">-</span> <span class="meta-unit">BPM</span>
-          </div>
+      <!-- Tabs -->
+      <nav id="tabs">
+        <button class="tab active" data-tab="library">曲库</button>
+        <button class="tab" data-tab="playlist">播放列表</button>
+      </nav>
+
+      <!-- Library Tab -->
+      <div id="library-tab" class="tab-content active">
+        <div class="filter-bar">
+          <select id="category-filter">
+            <option value="">全部舞种</option>
+          </select>
+          <input type="text" id="search-input" placeholder="搜索曲目...">
         </div>
-        <div class="progress-container">
+        <div id="track-list" class="track-list"></div>
+      </div>
+
+      <!-- Playlist Tab -->
+      <div id="playlist-tab" class="tab-content">
+        <div class="playlist-header">
+          <select id="playlist-select">
+            <option value="">-- 选择播放列表 --</option>
+          </select>
+          <button id="btn-new-playlist" class="icon-btn" title="新建">+</button>
+          <button id="btn-delete-playlist" class="icon-btn danger" title="删除">🗑</button>
+        </div>
+        <!-- Add songs to playlist -->
+        <div class="playlist-add-section">
+          <div class="section-label">添加曲目</div>
+          <div class="add-filter-bar">
+            <select id="add-category-filter">
+              <option value="">全部舞种</option>
+            </select>
+            <input type="text" id="add-search-input" placeholder="搜索添加...">
+          </div>
+          <div id="add-track-list" class="track-list add-list"></div>
+        </div>
+        <div class="playlist-divider"></div>
+        <div id="playlist-tracks" class="track-list"></div>
+        <div class="playlist-actions">
+          <button id="btn-export-playlist">导出</button>
+          <button id="btn-import-playlist">导入</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== Right Panel: Player ====== -->
+    <section class="panel-right" id="panel-right">
+      <!-- Now Playing Info -->
+      <div class="now-playing">
+        <div class="track-title" id="track-title">未播放</div>
+        <div class="track-meta">
+          <span id="track-category" class="meta-tag">-</span>
+          <span class="meta-divider">·</span>
+          <span id="track-bpm">-</span> <span class="meta-unit">BPM</span>
+        </div>
+      </div>
+
+      <!-- Progress Bar (big, easy to drag) -->
+      <div class="progress-section">
+        <div class="progress-times">
           <span id="current-time">0:00</span>
-          <input type="range" id="progress" min="0" max="100" value="0" step="0.1">
           <span id="duration">0:00</span>
         </div>
-        <div class="controls">
-          <button id="btn-prev" title="上一首" class="ctrl-btn">⏮</button>
-          <button id="btn-play" title="播放/暂停" class="ctrl-btn play-btn">▶</button>
-          <button id="btn-next" title="下一首" class="ctrl-btn">⏭</button>
-          <div class="repeat-group">
-            <button id="btn-repeat" class="ctrl-btn mode-btn" title="循环模式">🔁</button>
-            <button id="btn-shuffle" class="ctrl-btn mode-btn" title="随机">🔀</button>
-          </div>
-          <div class="volume-control">
-            <span class="vol-icon">🔊</span>
-            <input type="range" id="volume" min="0" max="100" value="80">
-          </div>
-        </div>
-        <div id="repeat-label" class="repeat-label">列表循环</div>
-      </section>
+        <input type="range" id="progress" class="progress-bar" min="0" max="100" value="0" step="0.1">
+      </div>
 
-      <!-- Speed Controls -->
-      <section class="panel">
+      <!-- Transport Controls -->
+      <div class="transport">
+        <button id="btn-prev" class="transport-btn" title="上一首">⏮</button>
+        <button id="btn-play" class="transport-btn play-btn" title="播放">▶</button>
+        <button id="btn-pause" class="transport-btn pause-btn" title="暂停">⏸</button>
+        <button id="btn-next" class="transport-btn" title="下一首">⏭</button>
+      </div>
+
+      <!-- Mode Row -->
+      <div class="mode-row">
+        <button id="btn-repeat" class="mode-btn" title="循环模式">🔁</button>
+        <span id="repeat-label" class="mode-label">列表循环</span>
+        <button id="btn-shuffle" class="mode-btn" title="随机">🔀</button>
+        <span class="mode-spacer"></span>
+        <div class="volume-control">
+          <span class="vol-icon">🔊</span>
+          <input type="range" id="volume" min="0" max="100" value="80">
+        </div>
+      </div>
+
+      <!-- Speed -->
+      <div class="player-section">
         <div class="section-label">播放速度</div>
         <div class="speed-row">
           <input type="range" id="speed" min="50" max="200" value="100" step="1">
@@ -69,76 +125,32 @@
           <button class="preset-btn" data-speed="130">1.3x</button>
           <button class="preset-btn" data-speed="150">1.5x</button>
         </div>
-      </section>
+      </div>
 
-      <!-- Beat Controls (metronome only) -->
-      <section class="panel">
+      <!-- Beat / Rhythm -->
+      <div class="player-section">
         <div class="section-label">节拍</div>
-        <div class="control-row">
-          <label>BPM</label>
-          <input type="number" id="bpm-input" min="40" max="300" placeholder="自动">
-          <button id="btn-detect-bpm" class="sm-btn" title="自动检测 BPM">检测</button>
-        </div>
-        <div class="control-row">
+        <div class="beat-row">
           <label class="toggle-label">
             <input type="checkbox" id="toggle-metronome">
             <span class="toggle-text">节拍器</span>
           </label>
+          <label>BPM</label>
+          <input type="number" id="bpm-input" min="40" max="300" placeholder="自动">
+          <button id="btn-detect-bpm" class="sm-btn">检测</button>
+        </div>
+        <div class="beat-row">
+          <label>拍子</label>
           <select id="time-signature">
             <option value="4">4/4 (1-2-3-4)</option>
             <option value="8" selected>8 count (5-6-7-8)</option>
           </select>
         </div>
-      </section>
-    </div>
+      </div>
 
-    <!-- Right Column: Library + Playlist -->
-    <div class="right-col">
-      <!-- Tabs -->
-      <nav id="tabs">
-        <button class="tab active" data-tab="library">曲库</button>
-        <button class="tab" data-tab="playlist">播放列表</button>
-      </nav>
-
-      <!-- Library Tab -->
-      <section id="library-tab" class="tab-content active">
-        <div class="filter-bar">
-          <select id="category-filter">
-            <option value="">全部舞种</option>
-          </select>
-          <input type="text" id="search-input" placeholder="搜索曲目...">
-        </div>
-        <div id="track-list" class="track-list"></div>
-      </section>
-
-      <!-- Playlist Tab -->
-      <section id="playlist-tab" class="tab-content">
-        <div class="playlist-header">
-          <select id="playlist-select">
-            <option value="">-- 选择播放列表 --</option>
-          </select>
-          <button id="btn-new-playlist" class="icon-btn" title="新建播放列表">+</button>
-          <button id="btn-delete-playlist" class="icon-btn danger" title="删除播放列表">🗑</button>
-        </div>
-        <!-- Add songs to playlist: filter by category -->
-        <div class="playlist-add-section">
-          <div class="section-label">添加曲目</div>
-          <div class="add-filter-bar">
-            <select id="add-category-filter">
-              <option value="">全部舞种</option>
-            </select>
-            <input type="text" id="add-search-input" placeholder="搜索添加...">
-          </div>
-          <div id="add-track-list" class="track-list add-list"></div>
-        </div>
-        <div class="playlist-divider"></div>
-        <div id="playlist-tracks" class="track-list"></div>
-        <div class="playlist-actions">
-          <button id="btn-export-playlist">导出</button>
-          <button id="btn-import-playlist">导入</button>
-        </div>
-      </section>
-    </div>
+      <!-- Mobile: swipe hint -->
+      <div class="swipe-hint" id="swipe-hint">← 滑动查看曲库 →</div>
+    </section>
   </div>
 
   <script type="module" src="/src/main.js"></script>

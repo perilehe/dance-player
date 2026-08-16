@@ -49,6 +49,7 @@ export class App {
       speedLabel: document.getElementById('speed-label'),
       bpmInput: document.getElementById('bpm-input'),
       btnPlay: document.getElementById('btn-play'),
+      btnPause: document.getElementById('btn-pause'),
       btnPrev: document.getElementById('btn-prev'),
       btnNext: document.getElementById('btn-next'),
       btnRepeat: document.getElementById('btn-repeat'),
@@ -76,8 +77,9 @@ export class App {
   _initEvents() {
     const { engine, $ } = this;
 
-    // 播放控制
-    $.btnPlay.addEventListener('click', () => this._togglePlay());
+    // 播放控制（播放和暂停分开为两个按键）
+    $.btnPlay.addEventListener('click', () => this._doPlay());
+    $.btnPause.addEventListener('click', () => this._doPause());
     $.btnPrev.addEventListener('click', () => this._playPrev());
     $.btnNext.addEventListener('click', () => this._playNext());
 
@@ -188,8 +190,8 @@ export class App {
     document.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
       if (e.code === 'Space') { e.preventDefault(); this._togglePlay(); }
-      if (e.code === 'ArrowLeft') this._playPrev();
-      if (e.code === 'ArrowRight') this._playNext();
+      if (e.code === 'ArrowLeft') { e.preventDefault(); this._playPrev(); }
+      if (e.code === 'ArrowRight') { e.preventDefault(); this._playNext(); }
     });
   }
 
@@ -450,7 +452,7 @@ export class App {
         this.beatOverlay.start(this._getBeatParams(track));
       }
 
-      this.$.btnPlay.textContent = '⏸';
+      this._updatePlayState();
       this._updateDuration();
     } catch (e) {
       console.error('播放失败:', e);
@@ -458,22 +460,48 @@ export class App {
     }
   }
 
-  _togglePlay() {
+  // 播放/暂停按钮状态
+  _updatePlayState() {
+    const playing = this.engine.isPlaying;
+    // 播放中 → 显示暂停键、隐藏播放键
+    this.$.btnPlay.classList.toggle('disabled', playing);
+    this.$.btnPause.classList.toggle('disabled', !playing);
+  }
+
+  // 播放按键：如果没有曲目则播放第一首；如果暂停中则恢复
+  _doPlay() {
     if (!this.engine.currentTrack) {
       if (this.filteredTracks.length > 0) {
         this._playFromLibrary(0);
       }
       return;
     }
-    this.engine.togglePlay();
-    this.$.btnPlay.textContent = this.engine.isPlaying ? '⏸' : '▶';
-
-    if (this.beatOverlay) {
-      if (this.engine.isPlaying && this.$.toggleMetronome.checked) {
+    if (this.engine.audio.paused) {
+      this.engine.resume();
+      this._updatePlayState();
+      if (this.beatOverlay && this.$.toggleMetronome.checked) {
         this.beatOverlay.start(this._getBeatParams(this.engine.currentTrack));
-      } else {
+      }
+    }
+  }
+
+  // 暂停按键
+  _doPause() {
+    if (this.engine.isPlaying) {
+      this.engine.pause();
+      this._updatePlayState();
+      if (this.beatOverlay) {
         this.beatOverlay.stop();
       }
+    }
+  }
+
+  // 空格键切换
+  _togglePlay() {
+    if (this.engine.isPlaying) {
+      this._doPause();
+    } else {
+      this._doPlay();
     }
   }
 
