@@ -65,6 +65,9 @@ export class App {
       playlistTracks: document.getElementById('playlist-tracks'),
       btnNewPlaylist: document.getElementById('btn-new-playlist'),
       btnDeletePlaylist: document.getElementById('btn-delete-playlist'),
+      btnEditPlaylist: document.getElementById('btn-edit-playlist'),
+      btnDoneEdit: document.getElementById('btn-done-edit'),
+      playlistEditSection: document.getElementById('playlist-edit-section'),
       btnExportPlaylist: document.getElementById('btn-export-playlist'),
       btnImportPlaylist: document.getElementById('btn-import-playlist'),
       addCategoryFilter: document.getElementById('add-category-filter'),
@@ -153,10 +156,14 @@ export class App {
     });
 
     // 播放列表
+    this._editMode = false;
     $.btnNewPlaylist.addEventListener('click', () => this._createPlaylist());
     $.btnDeletePlaylist.addEventListener('click', () => this._deletePlaylist());
+    $.btnEditPlaylist.addEventListener('click', () => this._enterEditMode());
+    $.btnDoneEdit.addEventListener('click', () => this._exitEditMode());
     $.playlistSelect.addEventListener('change', () => {
       this.playlistManager.select($.playlistSelect.value);
+      this._exitEditMode();
       this._renderPlaylist();
     });
     $.btnExportPlaylist.addEventListener('click', () => this._exportPlaylist());
@@ -700,51 +707,72 @@ export class App {
     }
   }
 
+  _enterEditMode() {
+    this._editMode = true;
+    this.$.playlistEditSection.classList.remove('hidden');
+    this.$.btnEditPlaylist.classList.add('active');
+    this.$.btnEditPlaylist.textContent = '编辑中';
+    this._renderPlaylist();
+    this._renderAddTrackList();
+  }
+
+  _exitEditMode() {
+    this._editMode = false;
+    this.$.playlistEditSection.classList.add('hidden');
+    this.$.btnEditPlaylist.classList.remove('active');
+    this.$.btnEditPlaylist.textContent = '编辑';
+    this._renderPlaylist();
+  }
+
   _renderPlaylist() {
     const list = this.playlistManager.getCurrent();
     const container = this.$.playlistTracks;
 
     if (!list || list.tracks.length === 0) {
-      container.innerHTML = '<div class="empty">播放列表为空，从下方添加曲目</div>';
+      container.innerHTML = '<div class="empty">播放列表为空，点击编辑添加曲目</div>';
       return;
     }
 
+    const editMode = this._editMode;
+
     container.innerHTML = list.tracks.map((t, i) => `
-      <div class="track-item" data-index="${i}" draggable="true">
-        <span class="track-num">${i + 1}</span>
+      <div class="track-item" data-index="${i}" draggable="${editMode}">
+        ${editMode ? `<span class="track-num">${i + 1}</span>` : ''}
         <div class="track-title">${this._escHtml(t.title)}</div>
         <div class="track-sub">
           <span class="tag">${this._escHtml(t._category || '')}</span>
           ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : ''}
         </div>
-        <button class="btn-remove" data-index="${i}" title="移除">✕</button>
+        ${editMode ? `<button class="btn-remove" data-index="${i}" title="移除">✕</button>` : ''}
       </div>
     `).join('');
 
-    // 点击播放
+    // 点击播放（非编辑模式）
     container.querySelectorAll('.track-item').forEach(el => {
       el.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-remove')) return;
+        if (editMode) return;
         const idx = parseInt(el.dataset.index);
-        // 设置播放列表索引
         this.playlistManager.setCurrentIndex(idx);
         const track = list.tracks[idx];
         if (track) this._playTrack(track);
       });
     });
 
-    // 移除按钮
-    container.querySelectorAll('.btn-remove').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const idx = parseInt(btn.dataset.index);
-        this.playlistManager.removeTrack(this.playlistManager.currentPlaylist, idx);
-        this._renderPlaylist();
+    // 移除按钮（编辑模式）
+    if (editMode) {
+      container.querySelectorAll('.btn-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.index);
+          this.playlistManager.removeTrack(this.playlistManager.currentPlaylist, idx);
+          this._renderPlaylist();
+        });
       });
-    });
 
-    // 拖拽排序
-    this._initDragSort(container);
+      // 拖拽排序
+      this._initDragSort(container);
+    }
   }
 
   _initDragSort(container) {

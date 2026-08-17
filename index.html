@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>舞蹈音乐播放器</title>
+  <title>Evia要跳舞啦</title>
   <link rel="stylesheet" href="/src/styles/main.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
     <!-- ====== Left Panel: Library + Playlist ====== -->
     <section class="panel-left" id="panel-left">
       <header id="header">
-        <h1>🎵 舞蹈音乐</h1>
+        <h1>🎶 Evia要跳舞啦，听点什么呢？</h1>
         <div id="loading-indicator" class="hidden">
           <span class="spinner"></span>
         </div>
@@ -41,24 +41,30 @@
             <option value="">-- 选择播放列表 --</option>
           </select>
           <button id="btn-new-playlist" class="icon-btn" title="新建">+</button>
-          <button id="btn-delete-playlist" class="icon-btn danger" title="删除">🗑</button>
+          <button id="btn-edit-playlist" class="icon-btn edit-btn" title="编辑">编辑</button>
         </div>
-        <!-- Add songs to playlist -->
-        <div class="playlist-add-section">
-          <div class="section-label">添加曲目</div>
-          <div class="add-filter-bar">
-            <select id="add-category-filter">
-              <option value="">全部舞种</option>
-            </select>
-            <input type="text" id="add-search-input" placeholder="搜索添加...">
-          </div>
-          <div id="add-track-list" class="track-list add-list"></div>
-        </div>
-        <div class="playlist-divider"></div>
+        <!-- Normal view: just the playlist tracks -->
         <div id="playlist-tracks" class="track-list"></div>
-        <div class="playlist-actions">
+        <!-- Edit mode: add section + delete buttons visible -->
+        <div id="playlist-edit-section" class="playlist-edit-section hidden">
+          <div class="playlist-add-section">
+            <div class="section-label">添加曲目</div>
+            <div class="add-filter-bar">
+              <select id="add-category-filter">
+                <option value="">全部舞种</option>
+              </select>
+              <input type="text" id="add-search-input" placeholder="搜索添加...">
+            </div>
+            <div id="add-track-list" class="track-list add-list"></div>
+          </div>
+          <div class="playlist-actions">
+            <button id="btn-done-edit" class="done-btn">完成</button>
+          </div>
+        </div>
+        <div class="playlist-actions-bottom">
           <button id="btn-export-playlist">导出</button>
           <button id="btn-import-playlist">导入</button>
+          <button id="btn-delete-playlist" class="danger">删除列表</button>
         </div>
       </div>
     </section>
@@ -67,6 +73,7 @@
     <section class="panel-right" id="panel-right">
       <!-- Now Playing Info -->
       <div class="now-playing">
+        <div class="np-label">正在播放</div>
         <div class="track-title" id="track-title">未播放</div>
         <div class="track-meta">
           <span id="track-category" class="meta-tag">-</span>
@@ -75,7 +82,7 @@
         </div>
       </div>
 
-      <!-- Progress Bar (big, easy to drag) -->
+      <!-- Progress Bar (BIG) -->
       <div class="progress-section">
         <div class="progress-times">
           <span id="current-time">0:00</span>
@@ -88,7 +95,7 @@
       <div class="transport">
         <button id="btn-prev" class="transport-btn" title="上一首">⏮</button>
         <button id="btn-play" class="transport-btn play-btn" title="播放">▶</button>
-        <button id="btn-pause" class="transport-btn pause-btn" title="暂停">⏸</button>
+        <button id="btn-pause" class="transport-btn pause-btn disabled" title="暂停">⏸</button>
         <button id="btn-next" class="transport-btn" title="下一首">⏭</button>
       </div>
 
