@@ -6,6 +6,7 @@ export class BeatOverlay {
     this.ctx = audioContext;
     this.audio = audioElement;
     this.metronomeOn = false;
+    this.metroVolume = 0.6; // 0-1
     this.bpm = 120;
     this.section = 4;
     this.introBeats = 0;
@@ -45,6 +46,11 @@ export class BeatOverlay {
 
   setMetronome(on) {
     this.metronomeOn = on;
+  }
+
+  setVolume(vol) {
+    // vol 0-100 → 0-1
+    this.metroVolume = Math.max(0, Math.min(1, vol / 100));
   }
 
   updateParams(params) {
@@ -108,7 +114,8 @@ export class BeatOverlay {
     osc.frequency.value = isAccent ? 1200 : 800;
     osc.type = 'sine';
 
-    const vol = forceVol !== null ? forceVol : (isAccent ? 0.8 : 0.4);
+    const baseVol = forceVol !== null ? forceVol : (isAccent ? 0.8 : 0.4);
+    const vol = baseVol * this.metroVolume;
     gain.gain.setValueAtTime(vol, ctxTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctxTime + 0.05);
 

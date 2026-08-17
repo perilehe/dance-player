@@ -93,11 +93,11 @@
         <input type="range" id="progress" class="progress-bar" min="0" max="100" value="0" step="0.1">
       </div>
 
-      <!-- Transport Controls -->
+      <!-- Transport Controls (rectangular rounded) -->
       <div class="transport">
         <button id="btn-prev" class="transport-btn" title="上一首">⏮</button>
-        <button id="btn-play" class="transport-btn play-btn" title="播放">▶</button>
-        <button id="btn-pause" class="transport-btn pause-btn disabled" title="暂停">⏸</button>
+        <button id="btn-play" class="transport-btn play-btn" title="播放">▶ 播放</button>
+        <button id="btn-pause" class="transport-btn pause-btn disabled" title="暂停">⏸ 暂停</button>
         <button id="btn-next" class="transport-btn" title="下一首">⏭</button>
       </div>
 
@@ -151,9 +151,14 @@
             <input type="checkbox" id="toggle-metronome">
             <span class="toggle-text">节拍器</span>
           </label>
+          <label>音量</label>
+          <input type="range" id="metro-vol" class="metro-vol-slider" min="0" max="100" value="60">
+        </div>
+        <div class="beat-row">
           <label>BPM</label>
-          <input type="number" id="bpm-input" min="40" max="300" placeholder="自动">
+          <input type="number" id="bpm-input" min="40" max="300" placeholder="手动输入">
           <button id="btn-detect-bpm" class="sm-btn">检测</button>
+          <span id="bpm-saved-hint" class="bpm-hint hidden">✓ 已保存</span>
         </div>
         <div class="beat-row">
           <label>拍子</label>

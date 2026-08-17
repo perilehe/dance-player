@@ -56,6 +56,8 @@ export class App {
       remainingTime: document.getElementById('remaining-time'),
       btnDetectBpm: document.getElementById('btn-detect-bpm'),
       toggleMetronome: document.getElementById('toggle-metronome'),
+      metroVol: document.getElementById('metro-vol'),
+      bpmSavedHint: document.getElementById('bpm-saved-hint'),
       timeSignature: document.getElementById('time-signature'),
       categoryFilter: document.getElementById('category-filter'),
       searchInput: document.getElementById('search-input'),
@@ -131,18 +133,28 @@ export class App {
 
     // BPM 检测
     $.btnDetectBpm.addEventListener('click', () => this._detectBpm());
-    $.bpmInput.addEventListener('change', () => {
-      const bpm = parseInt($.bpmInput.value);
-      if (bpm > 0 && this.beatOverlay) {
-        this.beatOverlay.updateParams({ bpm });
-      }
-    });
 
     // 节拍器
     $.toggleMetronome.addEventListener('change', () => this._updateBeatOverlay());
+    $.metroVol.addEventListener('input', () => this._updateBeatOverlay());
     $.timeSignature.addEventListener('change', () => {
       if (this.beatOverlay) this.beatOverlay.updateParams({ section: parseInt($.timeSignature.value) });
       storage.setPreferences({ timeSignature: $.timeSignature.value });
+    });
+
+    // BPM 输入：失焦或回车即保存
+    $.bpmInput.addEventListener('change', () => {
+      const bpm = parseInt($.bpmInput.value);
+      if (bpm > 0 && this.engine.currentTrack) {
+        // 永久保存到 localStorage
+        storage.setBpm(this.engine.currentTrack.id, bpm);
+        this.engine.currentTrack.bpm = bpm;
+        this.$.trackBpm.textContent = bpm;
+        if (this.beatOverlay) {
+          this.beatOverlay.updateParams({ bpm });
+        }
+        this._showBpmSaved();
+      }
     });
 
     // 曲库搜索 & 筛选
@@ -211,6 +223,7 @@ export class App {
     this.$.speedLabel.textContent = (prefs.speed / 100).toFixed(2) + 'x';
     this._updateSpeedPresets(prefs.speed);
     this.$.toggleMetronome.checked = prefs.metronomeOn;
+    if (this.$.metroVol) this.$.metroVol.value = prefs.metroVol ?? 60;
     this.$.timeSignature.value = prefs.timeSignature;
   }
 
@@ -611,10 +624,12 @@ export class App {
 
   _updateBeatOverlay() {
     const metronomeOn = this.$.toggleMetronome.checked;
-    storage.setPreferences({ metronomeOn });
+    const metroVol = parseInt(this.$.metroVol.value);
+    storage.setPreferences({ metronomeOn, metroVol });
 
     if (!this.beatOverlay) return;
     this.beatOverlay.setMetronome(metronomeOn);
+    this.beatOverlay.setVolume(metroVol);
 
     if (this.engine.isPlaying && metronomeOn) {
       this.beatOverlay.stop();
@@ -622,6 +637,19 @@ export class App {
     } else if (!metronomeOn) {
       this.beatOverlay.stop();
     }
+  }
+
+  _showBpmSaved() {
+    if (!this.$.bpmSavedHint) return;
+    this.$.bpmSavedHint.classList.remove('hidden');
+    // Reset animation
+    this.$.bpmSavedHint.style.animation = 'none';
+    this.$.bpmSavedHint.offsetHeight; // reflow
+    this.$.bpmSavedHint.style.animation = '';
+    clearTimeout(this._bpmHintTimer);
+    this._bpmHintTimer = setTimeout(() => {
+      this.$.bpmSavedHint.classList.add('hidden');
+    }, 1500);
   }
 
   // --- 播放列表 ---

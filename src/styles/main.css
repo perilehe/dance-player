@@ -504,12 +504,12 @@ body {
   box-shadow: 0 3px 10px rgba(0,0,0,0.35);
 }
 
-/* ====== Transport Controls ====== */
+/* ====== Transport Controls (rectangular rounded) ====== */
 .transport {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 10px;
   margin-bottom: 18px;
 }
 
@@ -517,16 +517,18 @@ body {
   background: var(--player-surface);
   border: 1px solid var(--player-surface-border);
   color: var(--player-text);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  font-size: 1.3rem;
+  height: 46px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 1.1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   transition: all var(--transition);
   backdrop-filter: blur(4px);
+  white-space: nowrap;
 }
 
 .transport-btn:hover {
@@ -534,12 +536,13 @@ body {
   border-color: rgba(255,255,255,0.4);
 }
 
-.transport-btn:active { transform: scale(0.93); }
+.transport-btn:active { transform: scale(0.96); }
 
 .play-btn {
-  width: 60px;
-  height: 60px;
-  font-size: 1.6rem;
+  height: 52px;
+  padding: 0 22px;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--player-grad-2);
   border-color: rgba(255,255,255,0.5);
   background: rgba(255,255,255,0.9);
@@ -552,9 +555,10 @@ body {
 }
 
 .pause-btn {
-  width: 60px;
-  height: 60px;
-  font-size: 1.6rem;
+  height: 52px;
+  padding: 0 22px;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--player-grad-2);
   border-color: rgba(255,255,255,0.5);
   background: rgba(255,255,255,0.9);
@@ -773,6 +777,42 @@ body {
 
 .sm-btn:hover { background: var(--player-accent); color: var(--player-grad-2); border-color: var(--player-accent); }
 
+/* Metronome volume slider */
+.metro-vol-slider {
+  flex: 1;
+  max-width: 100px;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+}
+
+.metro-vol-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--player-accent);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.metro-vol-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--player-accent);
+}
+
+/* BPM saved hint */
+.bpm-hint {
+  font-size: 0.7rem;
+  color: var(--player-accent);
+  font-weight: 600;
+  margin-left: 4px;
+  animation: fade-hint 1.5s ease-out forwards;
+}
+
+@keyframes fade-hint {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 .toggle-label {
   display: flex;
   align-items: center;
@@ -866,16 +906,17 @@ input[type="range"]::-moz-range-thumb {
 
   .swipe-hint { display: block; }
 
-  /* Even bigger touch targets on mobile */
+  /* Bigger touch targets on mobile */
   .transport-btn {
-    width: 56px;
-    height: 56px;
+    height: 52px;
+    padding: 0 18px;
+    font-size: 1.15rem;
   }
 
   .play-btn, .pause-btn {
-    width: 68px;
-    height: 68px;
-    font-size: 1.9rem;
+    height: 58px;
+    padding: 0 26px;
+    font-size: 1.2rem;
   }
 
   .progress-bar {
