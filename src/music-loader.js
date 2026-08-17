@@ -19,11 +19,11 @@ export class MusicLoader {
     const errors = [];
     results.forEach((result, i) => {
       if (result.status === 'fulfilled') {
-        const { tracks, category } = result.value;
+        const { tracks, trackCategories } = result.value;
         tracks.forEach(t => {
           t._source = this.sources[i];
-          t._category = category;
-          this.categories.add(category);
+          t._category = t.category;
+          this.categories.add(t.category);
         });
         this.allTracks.push(...tracks);
       } else {
@@ -47,21 +47,28 @@ export class MusicLoader {
     const category = manifest.category || source.name;
     const baseUrl = source.baseUrl || new URL('.', source.manifestUrl).href;
 
-    const tracks = (manifest.tracks || []).map(t => ({
-      id: t.id || t.filename,
-      title: t.title || t.filename.replace(/\.mp3$/i, ''),
-      filename: t.filename,
-      url: baseUrl + encodeURIComponent(t.filename),
-      category,
-      bpm: t.bpm || null,
-      section: t.section || 4,
-      intro_beats: t.intro_beats || t.introBeats || 0,
-      category_abbr: t.category_abbr || t.categoryAbbr || '',
-      duration: t.duration || null,
-      size: t.size || null,
-    }));
+    const tracks = (manifest.tracks || []).map(t => {
+      // 优先使用每首曲目自己的分类（如拉丁组合里的牛仔/桑巴/斗牛）
+      const trackCategory = t.category || category;
+      return {
+        id: t.id || t.filename,
+        title: t.title || t.filename.replace(/\.mp3$/i, ''),
+        filename: t.filename,
+        url: baseUrl + encodeURIComponent(t.filename),
+        category: trackCategory,
+        bpm: t.bpm || null,
+        section: t.section || 4,
+        intro_beats: t.intro_beats || t.introBeats || 0,
+        category_abbr: t.category_abbr || t.categoryAbbr || '',
+        duration: t.duration || null,
+        size: t.size || null,
+      };
+    });
 
-    return { tracks, category };
+    // 收集分类：优先用每首自己的分类
+    const trackCategories = new Set(tracks.map(t => t.category));
+
+    return { tracks, trackCategories };
   }
 
   // 按分类筛选

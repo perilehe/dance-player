@@ -79,14 +79,16 @@
           <span id="track-category" class="meta-tag">-</span>
           <span class="meta-divider">·</span>
           <span id="track-bpm">-</span> <span class="meta-unit">BPM</span>
+          <span class="meta-divider">·</span>
+          <span id="track-duration" class="meta-unit">--:--</span>
         </div>
       </div>
 
-      <!-- Progress Bar (BIG) -->
+      <!-- Progress Bar (BIG): left = current, right = remaining -->
       <div class="progress-section">
         <div class="progress-times">
           <span id="current-time">0:00</span>
-          <span id="duration">0:00</span>
+          <span id="remaining-time" class="remaining">-0:00</span>
         </div>
         <input type="range" id="progress" class="progress-bar" min="0" max="100" value="0" step="0.1">
       </div>
@@ -99,23 +101,33 @@
         <button id="btn-next" class="transport-btn" title="下一首">⏭</button>
       </div>
 
-      <!-- Mode Row -->
-      <div class="mode-row">
-        <button id="btn-repeat" class="mode-btn" title="循环模式">🔁</button>
-        <span id="repeat-label" class="mode-label">列表循环</span>
-        <button id="btn-shuffle" class="mode-btn" title="随机">🔀</button>
-        <span class="mode-spacer"></span>
-        <div class="volume-control">
-          <span class="vol-icon">🔊</span>
-          <input type="range" id="volume" min="0" max="100" value="80">
-        </div>
+      <!-- Play Mode: 3 big buttons -->
+      <div class="play-modes">
+        <button class="pm-btn active" data-mode="list" id="pm-list">
+          <span class="pm-icon">🔂</span>
+          <span class="pm-label">列表循环</span>
+        </button>
+        <button class="pm-btn" data-mode="single" id="pm-single">
+          <span class="pm-icon">🔁</span>
+          <span class="pm-label">单曲循环</span>
+        </button>
+        <button class="pm-btn" data-mode="seq" id="pm-seq">
+          <span class="pm-icon">▶️</span>
+          <span class="pm-label">顺序播放</span>
+        </button>
+      </div>
+
+      <!-- Volume -->
+      <div class="volume-row">
+        <span class="vol-icon">🔊</span>
+        <input type="range" id="volume" min="0" max="100" value="80">
       </div>
 
       <!-- Speed -->
       <div class="player-section">
         <div class="section-label">播放速度</div>
         <div class="speed-row">
-          <input type="range" id="speed" min="50" max="200" value="100" step="1">
+          <input type="range" id="speed" min="50" max="110" value="100" step="1">
           <span id="speed-label" class="speed-value">1.00x</span>
         </div>
         <div class="speed-presets">
@@ -128,9 +140,6 @@
           <button class="preset-btn" data-speed="95">0.95x</button>
           <button class="preset-btn active" data-speed="100">1.0x</button>
           <button class="preset-btn" data-speed="110">1.1x</button>
-          <button class="preset-btn" data-speed="120">1.2x</button>
-          <button class="preset-btn" data-speed="130">1.3x</button>
-          <button class="preset-btn" data-speed="150">1.5x</button>
         </div>
       </div>
 

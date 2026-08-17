@@ -20,11 +20,9 @@ export class App {
     this.currentSearch = '';
     this.selectedTrackId = null;
 
-    // 播放模式: 'list' | 'single' | 'shuffle'
+    // 播放模式: 'list' | 'single' | 'seq'
     this.repeatMode = storage.getPreferences().repeatMode || 'list';
-    // 用于 shuffle 的打乱索引
-    this._shuffleOrder = [];
-    this._shufflePos = -1;
+    if (this.repeatMode === 'shuffle') this.repeatMode = 'list'; // migrate old shuffle
     // 在曲库播放时的列表引用
     this._libraryPlayList = null;
     this._libraryPlayIdx = -1;
@@ -42,7 +40,6 @@ export class App {
       trackCategory: document.getElementById('track-category'),
       trackBpm: document.getElementById('track-bpm'),
       currentTime: document.getElementById('current-time'),
-      duration: document.getElementById('duration'),
       progress: document.getElementById('progress'),
       volume: document.getElementById('volume'),
       speed: document.getElementById('speed'),
@@ -52,9 +49,11 @@ export class App {
       btnPause: document.getElementById('btn-pause'),
       btnPrev: document.getElementById('btn-prev'),
       btnNext: document.getElementById('btn-next'),
-      btnRepeat: document.getElementById('btn-repeat'),
-      btnShuffle: document.getElementById('btn-shuffle'),
-      repeatLabel: document.getElementById('repeat-label'),
+      pmList: document.getElementById('pm-list'),
+      pmSingle: document.getElementById('pm-single'),
+      pmSeq: document.getElementById('pm-seq'),
+      trackDuration: document.getElementById('track-duration'),
+      remainingTime: document.getElementById('remaining-time'),
       btnDetectBpm: document.getElementById('btn-detect-bpm'),
       toggleMetronome: document.getElementById('toggle-metronome'),
       timeSignature: document.getElementById('time-signature'),
@@ -124,9 +123,10 @@ export class App {
       });
     });
 
-    // 循环/随机模式
-    $.btnRepeat.addEventListener('click', () => this._cycleRepeatMode());
-    $.btnShuffle.addEventListener('click', () => this._toggleShuffle());
+    // 播放模式（三个大按钮）
+    $.pmList.addEventListener('click', () => this._setPlayMode('list'));
+    $.pmSingle.addEventListener('click', () => this._setPlayMode('single'));
+    $.pmSeq.addEventListener('click', () => this._setPlayMode('seq'));
     this._updateModeButtons();
 
     // BPM 检测
@@ -221,54 +221,18 @@ export class App {
     });
   }
 
-  // === 循环/随机模式 ===
+  // === 播放模式 ===
 
-  _cycleRepeatMode() {
-    // list -> single -> list
-    this.repeatMode = this.repeatMode === 'list' ? 'single' : 'list';
-    storage.setPreferences({ repeatMode: this.repeatMode });
-    this._updateModeButtons();
-  }
-
-  _toggleShuffle() {
-    if (this.repeatMode === 'shuffle') {
-      this.repeatMode = 'list';
-    } else {
-      this.repeatMode = 'shuffle';
-      this._buildShuffleOrder();
-    }
-    storage.setPreferences({ repeatMode: this.repeatMode });
+  _setPlayMode(mode) {
+    this.repeatMode = mode;
+    storage.setPreferences({ repeatMode: mode });
     this._updateModeButtons();
   }
 
   _updateModeButtons() {
-    this.$.btnRepeat.classList.toggle('active', this.repeatMode === 'single');
-    this.$.btnShuffle.classList.toggle('active', this.repeatMode === 'shuffle');
-
-    const labels = { list: '列表循环', single: '单曲循环', shuffle: '随机播放' };
-    this.$.repeatLabel.textContent = labels[this.repeatMode] || '列表循环';
-  }
-
-  _buildShuffleOrder() {
-    const list = this._getActiveTrackList();
-    this._shuffleOrder = list.map((_, i) => i);
-    // Fisher-Yates shuffle
-    for (let i = this._shuffleOrder.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [this._shuffleOrder[i], this._shuffleOrder[j]] = [this._shuffleOrder[j], this._shuffleOrder[i]];
-    }
-    // 当前位置放到开头
-    const currentIdx = this._getCurrentIndexInList();
-    if (currentIdx >= 0) {
-      const posInShuffle = this._shuffleOrder.indexOf(currentIdx);
-      if (posInShuffle > 0) {
-        this._shuffleOrder.splice(posInShuffle, 1);
-        this._shuffleOrder.unshift(currentIdx);
-      }
-      this._shufflePos = 0;
-    } else {
-      this._shufflePos = -1;
-    }
+    this.$.pmList.classList.toggle('active', this.repeatMode === 'list');
+    this.$.pmSingle.classList.toggle('active', this.repeatMode === 'single');
+    this.$.pmSeq.classList.toggle('active', this.repeatMode === 'seq');
   }
 
   _getActiveTrackList() {
@@ -277,11 +241,6 @@ export class App {
       if (pl && pl.tracks.length > 0) return pl.tracks;
     }
     return this.filteredTracks;
-  }
-
-  _getCurrentIndexInList() {
-    const list = this._getActiveTrackList();
-    return list.findIndex(t => t.id === this.engine.currentTrack?.id);
   }
 
   _onTrackEnded() {
@@ -297,6 +256,20 @@ export class App {
       });
       return;
     }
+    if (this.repeatMode === 'seq') {
+      // 顺序播放：到最后一首就停
+      const list = this._getActiveTrackList();
+      const curIdx = list.findIndex(t => t.id === this.engine.currentTrack?.id);
+      if (curIdx < list.length - 1) {
+        this._playNext();
+      } else {
+        // 最后一首播完，停止
+        this._doPause();
+        this._updatePlayState();
+      }
+      return;
+    }
+    // 列表循环
     this._playNext();
   }
 
@@ -451,8 +424,13 @@ export class App {
 
       const bpm = track.bpm || storage.getBpm(track.id);
       this.$.trackBpm.textContent = bpm || '?';
-      this.$.bpmInput.value = bpm || '';
-      this.$.bpmInput.placeholder = bpm || '自动';
+      this.$.bpmInput.value = bpm || 120;  // 默认 120，方便手动调整
+      this.$.bpmInput.placeholder = '手动输入';
+      if (!bpm) {
+        // BPM 未知时提示用户可手动输入
+        this.$.trackBpm.textContent = '120?';
+        this.$.trackBpm.title = 'BPM 未检测到，默认 120，可手动修改';
+      }
 
       if (this.beatOverlay && this.$.toggleMetronome.checked) {
         this.beatOverlay.stop();
@@ -518,39 +496,15 @@ export class App {
     if (this.playlistManager.currentPlaylist) {
       const pl = this.playlistManager.getCurrent();
       if (pl && pl.tracks.length > 0) {
-        if (this.repeatMode === 'shuffle') {
-          if (this._shuffleOrder.length === 0) this._buildShuffleOrder();
-          this._shufflePos = (this._shufflePos + 1) % this._shuffleOrder.length;
-          next = pl.tracks[this._shuffleOrder[this._shufflePos]];
-        } else {
-          next = this.playlistManager.next();
-        }
+        next = this.playlistManager.next();
       }
     }
 
     if (!next && this._libraryPlayList && this._libraryPlayList.length > 0) {
-      if (this.repeatMode === 'shuffle') {
-        if (this._shuffleOrder.length === 0 || this._shuffleOrder[0] !== this._libraryPlayList.length) {
-          this._shuffleOrder = this._libraryPlayList.map((_, i) => i);
-          for (let i = this._shuffleOrder.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this._shuffleOrder[i], this._shuffleOrder[j]] = [this._shuffleOrder[j], this._shuffleOrder[i]];
-          }
-          const curIdx = this._libraryPlayList.findIndex(t => t.id === this.engine.currentTrack?.id);
-          if (curIdx >= 0) {
-            const p = this._shuffleOrder.indexOf(curIdx);
-            if (p > 0) { this._shuffleOrder.splice(p, 1); this._shuffleOrder.unshift(curIdx); }
-            this._shufflePos = 0;
-          }
-        }
-        this._shufflePos = (this._shufflePos + 1) % this._shuffleOrder.length;
-        next = this._libraryPlayList[this._shuffleOrder[this._shufflePos]];
-      } else {
-        const curIdx = this._libraryPlayList.findIndex(t => t.id === this.engine.currentTrack?.id);
-        const nextIdx = (curIdx + 1) % this._libraryPlayList.length;
-        next = this._libraryPlayList[nextIdx];
-        this._libraryPlayIdx = nextIdx;
-      }
+      const curIdx = this._libraryPlayList.findIndex(t => t.id === this.engine.currentTrack?.id);
+      const nextIdx = (curIdx + 1) % this._libraryPlayList.length;
+      next = this._libraryPlayList[nextIdx];
+      this._libraryPlayIdx = nextIdx;
     }
 
     if (!next && this.filteredTracks.length > 0) {
@@ -568,13 +522,7 @@ export class App {
     if (this.playlistManager.currentPlaylist) {
       const pl = this.playlistManager.getCurrent();
       if (pl && pl.tracks.length > 0) {
-        if (this.repeatMode === 'shuffle') {
-          if (this._shuffleOrder.length === 0) this._buildShuffleOrder();
-          this._shufflePos = (this._shufflePos - 1 + this._shuffleOrder.length) % this._shuffleOrder.length;
-          prev = pl.tracks[this._shuffleOrder[this._shufflePos]];
-        } else {
-          prev = this.playlistManager.prev();
-        }
+        prev = this.playlistManager.prev();
       }
     }
 
@@ -598,13 +546,17 @@ export class App {
     const { currentTime, duration } = this.engine;
     if (duration > 0) {
       this.$.progress.value = (currentTime / duration) * 100;
+      const remaining = duration - currentTime;
+      this.$.remainingTime.textContent = '-' + this._formatTime(remaining);
     }
     this.$.currentTime.textContent = this._formatTime(currentTime);
   }
 
   _updateDuration() {
     const d = this.engine.duration;
-    this.$.duration.textContent = d ? this._formatTime(d) : '0:00';
+    if (this.$.trackDuration) {
+      this.$.trackDuration.textContent = d ? this._formatTime(d) : '--:--';
+    }
   }
 
   _formatTime(seconds) {
