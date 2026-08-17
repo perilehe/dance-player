@@ -195,7 +195,7 @@ export class App {
     engine.onEnded(() => this._onTrackEnded());
     engine.onLoaded(() => this._updateDuration());
     engine.onError(() => {
-      $.trackTitle.textContent = '❌ 播放失败';
+      $.trackTitle.textContent = 'Failed to play';
     });
 
     // 播放列表变化
@@ -318,8 +318,8 @@ export class App {
       this._renderTrackList();
       this._renderAddTrackList();
     } catch (e) {
-      console.error('音乐加载失败:', e);
-      this.$.trackList.innerHTML = '<div class="error">音乐库加载失败，请检查网络</div>';
+      console.error('Music load failed:', e);
+      this.$.trackList.innerHTML = '<div class="error">Failed to load music library. Check your network.</div>';
     } finally {
       this.$.loadingIndicator.classList.add('hidden');
     }
@@ -336,9 +336,9 @@ export class App {
         <div class="track-title">${this._escHtml(t.title)}</div>
         <div class="track-sub">
           <span class="tag">${this._escHtml(t._category)}</span>
-          ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : ''}
-          <button class="btn-action btn-add-pl" data-id="${t.id}" title="添加到播放列表" onclick="event.stopPropagation()">➕</button>
-          <a class="btn-action" href="${t.url}" download="${this._escHtml(t.filename || t.title + '.mp3')}" title="下载" onclick="event.stopPropagation()">⬇</a>
+          ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : storage.getBpm(t.id) ? `<span class="tag bpm">${storage.getBpm(t.id)} BPM</span>` : ''}
+          <button class="btn-action btn-add-pl" data-id="${t.id}" title="Add to playlist" onclick="event.stopPropagation()">➕</button>
+          <a class="btn-action" href="${t.url}" download="${this._escHtml(t.filename || t.title + '.mp3')}" title="Download" onclick="event.stopPropagation()">⬇</a>
         </div>
       </div>
     `).join('');
@@ -376,7 +376,7 @@ export class App {
     if (!container) return;
 
     if (tracks.length === 0) {
-      container.innerHTML = '<div class="empty">无匹配曲目</div>';
+      container.innerHTML = '<div class="empty">No matching tracks</div>';
       return;
     }
 
@@ -385,8 +385,8 @@ export class App {
         <div class="track-title">${this._escHtml(t.title)}</div>
         <div class="track-sub">
           <span class="tag">${this._escHtml(t._category)}</span>
-          ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : ''}
-          <button class="btn-action btn-quick-add" data-id="${t.id}" title="添加到当前播放列表" onclick="event.stopPropagation()">➕</button>
+          ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : storage.getBpm(t.id) ? `<span class="tag bpm">${storage.getBpm(t.id)} BPM</span>` : ''}
+          <button class="btn-action btn-quick-add" data-id="${t.id}" title="Add to current playlist" onclick="event.stopPropagation()">➕</button>
         </div>
       </div>
     `).join('');
@@ -404,7 +404,7 @@ export class App {
   _quickAddToPlaylist(track, triggerBtn) {
     const name = this.playlistManager.currentPlaylist;
     if (!name) {
-      const newName = prompt('输入播放列表名称（或留空取消）:');
+      const newName = prompt('Playlist name (or cancel):');
       if (!newName) return;
       this.playlistManager.create(newName);
       this.playlistManager.select(newName);
@@ -414,7 +414,7 @@ export class App {
     const added = this.playlistManager.addTrack(plName, track);
     if (added && triggerBtn) {
       const orig = triggerBtn.textContent;
-      triggerBtn.textContent = '✓';
+      triggerBtn.textContent = 'OK';
       setTimeout(() => { triggerBtn.textContent = orig; }, 800);
     }
     this._renderPlaylist();
@@ -438,11 +438,11 @@ export class App {
       const bpm = track.bpm || storage.getBpm(track.id);
       this.$.trackBpm.textContent = bpm || '?';
       this.$.bpmInput.value = bpm || 120;  // 默认 120，方便手动调整
-      this.$.bpmInput.placeholder = '手动输入';
+      this.$.bpmInput.placeholder = 'Type BPM';
       if (!bpm) {
         // BPM 未知时提示用户可手动输入
         this.$.trackBpm.textContent = '120?';
-        this.$.trackBpm.title = 'BPM 未检测到，默认 120，可手动修改';
+        this.$.trackBpm.title = 'BPM not detected, default 120 — tap to change';
       }
 
       if (this.beatOverlay && this.$.toggleMetronome.checked) {
@@ -453,8 +453,8 @@ export class App {
       this._updatePlayState();
       this._updateDuration();
     } catch (e) {
-      console.error('播放失败:', e);
-      this.$.trackTitle.textContent = '❌ ' + track.title;
+      console.error('Playback failed:', e);
+      this.$.trackTitle.textContent = 'Error: ' + track.title;
     }
   }
 
@@ -581,7 +581,7 @@ export class App {
   async _detectBpm() {
     const track = this.engine.currentTrack;
     if (!track) return;
-    this.$.btnDetectBpm.textContent = '检测中...';
+    this.$.btnDetectBpm.textContent = 'Detecting...';
     this.$.btnDetectBpm.disabled = true;
     try {
       const buffer = await this.engine.getAudioBuffer(track);
@@ -593,9 +593,9 @@ export class App {
         track.bpm = bpm;
       }
     } catch (e) {
-      console.error('BPM 检测失败:', e);
+      console.error('BPM detection failed:', e);
     } finally {
-      this.$.btnDetectBpm.textContent = '检测';
+      this.$.btnDetectBpm.textContent = 'Detect';
       this.$.btnDetectBpm.disabled = false;
     }
   }
@@ -657,7 +657,7 @@ export class App {
   _refreshPlaylistSelect() {
     const names = this.playlistManager.getNames();
     const current = this.playlistManager.currentPlaylist;
-    this.$.playlistSelect.innerHTML = '<option value="">-- 选择播放列表 --</option>';
+    this.$.playlistSelect.innerHTML = '<option value="">-- Pick a Playlist --</option>';
     names.forEach(name => {
       const opt = document.createElement('option');
       opt.value = name;
@@ -668,7 +668,7 @@ export class App {
   }
 
   _createPlaylist() {
-    const name = prompt('输入播放列表名称:');
+    const name = prompt('Playlist name:');
     if (name && this.playlistManager.create(name)) {
       this._refreshPlaylistSelect();
       this.$.playlistSelect.value = name;
@@ -680,7 +680,7 @@ export class App {
   _deletePlaylist() {
     const name = this.playlistManager.currentPlaylist;
     if (!name) return;
-    if (confirm(`确定删除播放列表 "${name}"？`)) {
+    if (confirm(`Delete playlist "${name}"?`)) {
       this.playlistManager.delete(name);
       this._refreshPlaylistSelect();
       this._renderPlaylist();
@@ -691,7 +691,7 @@ export class App {
     this._editMode = true;
     this.$.playlistEditSection.classList.remove('hidden');
     this.$.btnEditPlaylist.classList.add('active');
-    this.$.btnEditPlaylist.textContent = '编辑中';
+    this.$.btnEditPlaylist.textContent = 'Editing';
     this._renderPlaylist();
     this._renderAddTrackList();
   }
@@ -700,7 +700,7 @@ export class App {
     this._editMode = false;
     this.$.playlistEditSection.classList.add('hidden');
     this.$.btnEditPlaylist.classList.remove('active');
-    this.$.btnEditPlaylist.textContent = '编辑';
+    this.$.btnEditPlaylist.textContent = 'Edit';
     this._renderPlaylist();
   }
 
@@ -709,7 +709,7 @@ export class App {
     const container = this.$.playlistTracks;
 
     if (!list || list.tracks.length === 0) {
-      container.innerHTML = '<div class="empty">播放列表为空，点击编辑添加曲目</div>';
+      container.innerHTML = '<div class="empty">Playlist is empty. Tap Edit to add songs.</div>';
       return;
     }
 
@@ -721,9 +721,9 @@ export class App {
         <div class="track-title">${this._escHtml(t.title)}</div>
         <div class="track-sub">
           <span class="tag">${this._escHtml(t._category || '')}</span>
-          ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : ''}
+          ${t.bpm ? `<span class="tag bpm">${t.bpm} BPM</span>` : storage.getBpm(t.id) ? `<span class="tag bpm">${storage.getBpm(t.id)} BPM</span>` : ''}
         </div>
-        ${editMode ? `<button class="btn-remove" data-index="${i}" title="移除">✕</button>` : ''}
+        ${editMode ? `<button class="btn-remove" data-index="${i}" title="Remove">✕</button>` : ''}
       </div>
     `).join('');
 
@@ -809,7 +809,7 @@ export class App {
           this.playlistManager.select(name);
           this._renderPlaylist();
         } else {
-          alert('导入失败，请检查文件格式');
+          alert('Import failed. Check file format.');
         }
       };
       reader.readAsText(file);
