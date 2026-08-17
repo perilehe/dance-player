@@ -154,6 +154,10 @@ export class App {
           this.beatOverlay.updateParams({ bpm });
         }
         this._showBpmSaved();
+        // 刷新左侧列表，显示 BPM
+        this._renderTrackList();
+        this._renderAddTrackList();
+        this._renderPlaylist();
       }
     });
 
@@ -443,6 +447,8 @@ export class App {
         // BPM 未知时提示用户可手动输入
         this.$.trackBpm.textContent = '120?';
         this.$.trackBpm.title = 'BPM not detected, default 120 — tap to change';
+        // 后台自动检测 BPM（不阻塞播放）
+        this._autoDetectBpm(track);
       }
 
       if (this.beatOverlay && this.$.toggleMetronome.checked) {
@@ -455,6 +461,27 @@ export class App {
     } catch (e) {
       console.error('Playback failed:', e);
       this.$.trackTitle.textContent = 'Error: ' + track.title;
+    }
+  }
+
+  // 后台自动检测 BPM（首次播放时触发）
+  async _autoDetectBpm(track) {
+    try {
+      const buffer = await this.engine.getAudioBuffer(track);
+      const bpm = await this.bpmDetector.detect(buffer, track.id);
+      if (bpm && this.engine.currentTrack?.id === track.id) {
+        // 只有当前还在播放这首歌时才更新 UI
+        this.$.trackBpm.textContent = bpm;
+        this.$.bpmInput.value = bpm;
+        track.bpm = bpm;
+        if (this.beatOverlay) this.beatOverlay.updateParams({ bpm });
+        // 刷新左侧列表
+        this._renderTrackList();
+        this._renderAddTrackList();
+        this._renderPlaylist();
+      }
+    } catch (e) {
+      // 静默失败，不影响播放
     }
   }
 
@@ -591,6 +618,10 @@ export class App {
         this.$.bpmInput.value = bpm;
         if (this.beatOverlay) this.beatOverlay.updateParams({ bpm });
         track.bpm = bpm;
+        // 刷新左侧列表，显示 BPM
+        this._renderTrackList();
+        this._renderAddTrackList();
+        this._renderPlaylist();
       }
     } catch (e) {
       console.error('BPM detection failed:', e);
